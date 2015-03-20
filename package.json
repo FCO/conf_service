@@ -1,0 +1,13 @@
+{
+  "name": "config_service",
+  "version": "0.0.1",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Fernando Correa de Oliveira <fco@cpan.org>",
+  "license": "ISC",
+  "dependencies": {
+    "ws": "^0.7.1"
+  }
+}
