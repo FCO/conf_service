@@ -6,6 +6,8 @@ function ConfTree(name, paren) {
 	this._value;
 	this.signed_by = [];
 	this.cbs = [];
+	if(!this.isRoot())
+		this.parent._value = undefined;
 };
 
 ConfTree.prototype = {
@@ -17,6 +19,12 @@ ConfTree.prototype = {
 				node.value = data[key];
 			}
 		} else {
+			setImmediate(function(){
+				for(var child in this.children) {
+					child.clear();
+				}
+			});
+			
 			this._value = data;
 		}
 		var cb;
@@ -31,6 +39,15 @@ ConfTree.prototype = {
 			return this._value;
 		else
 			return this.toHash();
+	},
+	clear:		function() {
+		for(var child in this.children) {
+			child.clear();
+		}
+		for(var attr in this) {
+			if(this.hasOwnProperty(attr))
+				this[attr] = undefined;
+		}
 	},
 	_transform_key:	function(key) {
 		if(!(key instanceof Array)) {
@@ -55,13 +72,11 @@ ConfTree.prototype = {
 		return hash;
 	},
 	set:		function(key, val) {
-console.log("creating: %s = %j", key, val);
 		this.createNode(key).value = val;
 		return key;
 	},
 	get:		function(key) {
 		var val = this.findNode(key).value;
-console.log("getting: %s = %s", key, val);
 		return val
 	},
 	keys:		function() {

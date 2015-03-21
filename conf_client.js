@@ -74,15 +74,16 @@ ConfigClient.prototype = {
 		
 		this.ws.once('message', this.waitForSignIn.bind(this));
 	},
-	_send:	function(msg) {
-		this.ws.send(msg);
+	_send:	function(msg, cb) {
+		this.ws.send(msg, cb);
 	},
 	getConf:	function(key) {
 		return this.conf.get(key);
 	},
-	setConf:	function(key, val) {
+	setConf:	function(key, val, cb) {
 		var msg = {};
 		msg[key] = val;
+		this.conf.createNode(key).addCb(cb);
 		this._send(JSON.stringify({SET: msg}));
 	},
 };

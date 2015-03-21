@@ -59,6 +59,7 @@ ConfigService.prototype = {
 		},
 		SET:	function(ws, data) {
 			for(var key in data) {
+				this.conf.createNode(key).sign(ws);
 				setImmediate(function(key) {
 					this.conf.set(key, data[key]);
 					this.notify(key);
