@@ -27,7 +27,10 @@ ConfTree.prototype = {
 		}
 	},
 	get value() {
-		return this._value;
+		if(this.isLeaf())
+			return this._value;
+		else
+			return this.toHash();
 	},
 	_transform_key:	function(key) {
 		if(!(key instanceof Array)) {
@@ -40,8 +43,8 @@ ConfTree.prototype = {
 	},
 	toHash:		function() {
 		var hash;
-		if(this.value !== undefined) {
-			hash = this.value;
+		if(this._value !== undefined) {
+			hash = this._value;
 		} else {
 			hash = {};
 			for(var i = 0; i < this.children.length; i++) {
@@ -52,13 +55,14 @@ ConfTree.prototype = {
 		return hash;
 	},
 	set:		function(key, val) {
+console.log("creating: %s = %j", key, val);
 		this.createNode(key).value = val;
 		return key;
 	},
 	get:		function(key) {
-		console.log("get(%j)", key);
-		console.log("%j", this.toHash());
-		return this.findNode(key).value;
+		var val = this.findNode(key).value;
+console.log("getting: %s = %s", key, val);
+		return val
 	},
 	keys:		function() {
 		if(this.children.length <= 0)
@@ -75,7 +79,7 @@ ConfTree.prototype = {
 		return keys;
 	},
 	isLeaf:			function() {
-		return this.value !== undefined && this.children.length == 0;
+		return this._value !== undefined && this.children.length == 0;
 	},
 	isRoot:			function() {
 		return this.parent === undefined;

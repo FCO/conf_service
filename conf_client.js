@@ -3,20 +3,21 @@ function ConfigClient(url, sign, cb) {
 	this.conf = new ConfTree();
 	this.url = url;
 	if(sign === undefined)
-		this.waitingFor = [];
+		this.sign = [];
 	else if(sign instanceof Array)
-		this.waitingFor = sign;
+		this.sign = sign;
 	else
-		this.waitingFor = [ sign ];
-console.log("waitingFor 1: %j", this.waitingFor);
-	this.cb = cb.bind(this)
+		this.sign = [ sign ];
+	this.waitingFor = [];
+	this.cb = cb.bind(this);
 	this.connect(this.url);
 }
 
 ConfigClient.prototype = {
+	time2retry:	50,
 	onMessage:	function(data, flags) {
-console.log("onMessage(%j)", data);
 		var data = JSON.parse(data);
+		console.log("msg: ", data);
 		var keys = [];
 		for(var key in data) {
 			keys.push(this.conf.set(key, data[key]));
@@ -24,7 +25,6 @@ console.log("onMessage(%j)", data);
 		return keys;
 	},
 	waitForSignIn:	function(data, flags) {
-console.log("waitForSignIn(%j)", data);
 		var keys = this.onMessage(data, flags);
 		keys.forEach(function(key) {
 			for(var i = 0; i < this.waitingFor.length; i++) {
@@ -38,41 +38,47 @@ console.log("waitForSignIn(%j)", data);
 	},
 	didFinishWaiting:	function() {
 		if(this.waitingFor.length === 0) {
-			if(this.cb !== undefined)
+			if(this.cb !== undefined) {
 				this.cb();
+				this.cb = undefined;
+			}
 			this.ws.on("message", this.onMessage.bind(this));
 		} else {
 			this.ws.once('message', this.waitForSignIn.bind(this));
 		}
 	},
 	onClose:	function() {
-		this.connect(this.url);
+		console.warn("Connection lost");
+		this.ws.removeAllListeners();
+		setTimeout(this.connect.bind(this, this.url), this.time2retry += this.time2retry * .5);
 	},
-	connect:	function(url, cb) {
+	connect:	function(url) {
 		this.WebSocket = require('ws');
 		this.ws = new this.WebSocket(url);
 
-		if(this.waitingFor.length > 0)
-			this.ws.on("open", function(){
-console.log("waitingFor 2: %j", this.waitingFor);
-				this._send(JSON.stringify({GET: this.waitingFor}));
+		//this.waitingFor = this.sign;
+		if(this.sign.length > 0) {
+			this.ws.once("open", function(){
+				console.warn("Connected");
+				this._send(JSON.stringify({GET: this.sign}));
 			}.bind(this));
-		else
-			this.ws.on("open", function(){
+		} else {
+			this.ws.once("open", function(){
+				console.warn("Connected");
 				setImmediate(this.didFinishWaiting.bind(this));
 			}.bind(this));
+		}
 
 		this.ws.on('close', this.onClose.bind(this));
 		this.ws.on('error', this.onClose.bind(this));
 		
 		this.ws.once('message', this.waitForSignIn.bind(this));
-		//this.ws.on('message', this.onMessage.bind(this));
 	},
 	_send:	function(msg) {
 		this.ws.send(msg);
 	},
 	getConf:	function(key) {
-		var node = this.conf.get(key);
+		return this.conf.get(key);
 	},
 	setConf:	function(key, val) {
 		var msg = {};
