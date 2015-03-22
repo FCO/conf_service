@@ -27,11 +27,13 @@ ConfTree.prototype = {
 			
 			this._value = data;
 		}
-		var cb;
-		while((cb = this.cbs.shift()) !== undefined) {
+//console.log(this);
+		var cb = this.cbs.shift();
+		while(cb !== undefined) {
 			(function(cb) {
 				setImmediate(cb.bind(this, this));
 			}).call(this, cb);
+			cb = this.cbs.shift();
 		}
 	},
 	get value() {
@@ -53,10 +55,10 @@ ConfTree.prototype = {
 		this.onDestroy(this.absName);
 console.log("destroy %j", this.toHash());
 		this._value = undefined;
-		for(var child in this.children) {
+		this.children.forEach(function(child) {
 			child.destroy();
-			child._value = undefined;
-		}
+			child.value = undefined;
+		}.bind(this));
 		for(var attr in this) {
 			if(this.hasOwnProperty(attr))
 				this[attr] = undefined;
@@ -118,6 +120,11 @@ console.log("destroy %j", this.toHash());
 	},
 	sign:				function(ws) {
 		this.signed_by.push(ws);
+	},
+	unsign:				function(ws) {
+		var index = this.signed_by.indexOf(ws);
+		if(index > 0)
+			this.signed_by.splice(index, 1);
 	},
 	addCb:				function(cb) {
 		this.cbs.push(cb);
