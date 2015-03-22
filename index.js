@@ -1,6 +1,13 @@
 var ConfTree = require("./conf_tree.js");
 function ConfigService(data, cb) {
 	this.conf = new ConfTree();
+	this.conf.onDestroy = function(key){
+		this.signed_by.forEach(function(ws){
+			var msg = {};
+			msg[key] = null;
+			ws.send(JSON.stringify(msg));
+		}.bind(this));
+	};
 	setImmediate(function(){
 		if(!(data instanceof Array)) data = [data];
 		data.forEach(function(data){
@@ -35,9 +42,9 @@ ConfigService.prototype = {
 			setImmediate(this.commands[cmd].bind(this, ws, message[cmd]));
 		}
 	},
-	notify:		function(key) {
+	notify:		function(meth, key) {
 		var node = this.conf.findNode(key);
-		node.notify(function(ws){
+		node[meth](function(ws){
 			var msg = {};
 			msg[key] = node.toHash();
 			ws.send(JSON.stringify(msg));
@@ -50,6 +57,7 @@ ConfigService.prototype = {
 			for(var i = 0; i < key.length; i++) {
 				setImmediate(function(key) {
 					var node = this.conf.findNode(key);
+					if(node === undefined) return;
 					node.sign(ws);
 					var msg = {};
 					msg[key] = node.toHash();
@@ -59,10 +67,14 @@ ConfigService.prototype = {
 		},
 		SET:	function(ws, data) {
 			for(var key in data) {
-				this.conf.createNode(key).sign(ws);
+				var node = this.conf.createNode(key);
+				node.sign(ws);
 				setImmediate(function(key) {
-					this.conf.set(key, data[key]);
-					this.notify(key);
+					var wasLeaf = node.isLeaf();
+					node.value = data[key];
+					if(!wasLeaf && node.isLeaf())
+						this.notify("notifyChildren", key);
+					this.notify("notifyParent", key);
 				}.bind(this, key));
 			}
 		},

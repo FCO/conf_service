@@ -59,11 +59,13 @@ ConfigClient.prototype = {
 		//this.waitingFor = this.sign;
 		if(this.sign.length > 0) {
 			this.ws.once("open", function(){
+				this.time2retry = 50;
 				console.warn("Connected");
 				this._send(JSON.stringify({GET: this.sign}));
 			}.bind(this));
 		} else {
 			this.ws.once("open", function(){
+				this.time2retry = 50;
 				console.warn("Connected");
 				setImmediate(this.didFinishWaiting.bind(this));
 			}.bind(this));
@@ -78,13 +80,30 @@ ConfigClient.prototype = {
 		this.ws.send(msg, cb);
 	},
 	getConf:	function(key) {
-		return this.conf.get(key);
+		var ret;
+		if(key instanceof Array) {
+			ret = [];
+			key.forEach(function(keyItem){
+				ret.push(this.getConf(keyItem));
+			}.bind(this));
+		} else {
+			ret = this.conf.get(key);
+		}
+		return ret;
 	},
-	setConf:	function(key, val, cb) {
-		var msg = {};
-		msg[key] = val;
-		this.conf.createNode(key).addCb(cb);
-		this._send(JSON.stringify({SET: msg}));
+	setConf:	function(pair, cb) {
+		if(pair instanceof Array) {
+			pair.forEach(function(pairItem){
+				this.setConf(pairItem);
+			}.bind(this));
+		} else {
+			for(var key in pair) {
+				var msg = {};
+				msg[key] = pair[key];
+				this.conf.createNode(key).addCb(cb);
+				this._send(JSON.stringify({SET: msg}));
+			}
+		}
 	},
 };
 

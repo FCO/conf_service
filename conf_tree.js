@@ -20,10 +20,10 @@ ConfTree.prototype = {
 			}
 		} else {
 			setImmediate(function(){
-				for(var child in this.children) {
-					child.clear();
-				}
-			});
+				this.children.forEach(function(child){
+					child.destroy();
+				}.bind(this));
+			}.bind(this));
 			
 			this._value = data;
 		}
@@ -40,25 +40,42 @@ ConfTree.prototype = {
 		else
 			return this.toHash();
 	},
-	clear:		function() {
+	get absName() {
+		if(this.parent.isRoot())
+			return this.name;
+		else
+			return this.parent.absName + "." + this.name;
+	},
+	onDestroy:			function(key) {
+		this.root.onDestroy.call(this, key);
+	},
+	destroy:			function() {
+		this.onDestroy(this.absName);
+console.log("destroy %j", this.toHash());
+		this._value = undefined;
 		for(var child in this.children) {
-			child.clear();
+			child.destroy();
+			child._value = undefined;
 		}
 		for(var attr in this) {
 			if(this.hasOwnProperty(attr))
 				this[attr] = undefined;
 		}
 	},
-	_transform_key:	function(key) {
+	get root() {
+		if(this.isRoot()) return this;
+		return this.parent.root;
+	},
+	_transform_key:			function(key) {
 		if(!(key instanceof Array)) {
 			key = key.split(".");
 		}
 		return key;
 	},
-	toString:	function() {
+	toString:			function() {
 		return JSON.stringify(this.toHash());
 	},
-	toHash:		function() {
+	toHash:				function() {
 		var hash;
 		if(this._value !== undefined) {
 			hash = this._value;
@@ -71,7 +88,7 @@ ConfTree.prototype = {
 		}
 		return hash;
 	},
-	set:		function(key, val) {
+	set:				function(key, val) {
 		this.createNode(key).value = val;
 		return key;
 	},
@@ -79,7 +96,7 @@ ConfTree.prototype = {
 		var val = this.findNode(key).value;
 		return val
 	},
-	keys:		function() {
+	keys:				function() {
 		if(this.children.length <= 0)
 			return [this.name];
 		var keys = [];
@@ -93,34 +110,44 @@ ConfTree.prototype = {
 		}.bind(this));
 		return keys;
 	},
-	isLeaf:			function() {
-		return this._value !== undefined && this.children.length == 0;
+	isLeaf:				function() {
+		return this.children.length == 0;
 	},
-	isRoot:			function() {
+	isRoot:				function() {
 		return this.parent === undefined;
 	},
-	absName:		function() {
-		if(this.parent.isRoot())
-			return this.name;
-		else
-			return this.parent.absName() + "." + this.name;
-	},
-	sign:			function(ws) {
+	sign:				function(ws) {
 		this.signed_by.push(ws);
 	},
-	addCb:			function(cb) {
+	addCb:				function(cb) {
 		this.cbs.push(cb);
 	},
-	notify:			function(func) {
-		this.recursiveRun(function() {
-			this.signed_by.forEach(func.bind(this));
+	notifyNode:			function(func) {
+		this.signed_by.forEach(func.bind(this));
+	},
+	notifyParent:			function(func) {
+		this.parentDo(function() {
+			this.notifyNode(func);
 		});
 	},
-	recursiveRun:		function(cb) {
-		cb.call(this);
-		if(!this.isRoot()) this.parent.recursiveRun(cb);
+	notifyChildren:			function(func) {
+		this.childrenDo(function() {
+			this.notifyNode(func);
+		});
 	},
-	nearstNode:	function(key) {
+	parentDo:		function(cb) {
+		cb.call(this);
+		if(!this.isRoot()) this.parent.parentDo(cb);
+	},
+	childrenDo:		function(cb) {
+		setImmediate(function(cb){
+			this.children.forEach(function(child){
+				this.childrenDo(cb);
+			}.bind(this));
+		}.bind(this, cb));
+		cb.call(this);
+	},
+	nearstNode:		function(key) {
 		var keys = this._transform_key(key);
 		var first_key = keys.shift();
 		var ret;
