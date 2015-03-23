@@ -12,6 +12,7 @@ function ConfTree(name, paren) {
 
 ConfTree.prototype = {
 	set value(data) {
+		console.log("setting value for '%s' to '%j'", this.absName, this.toHash());
 		if(typeof data === "object") {
 			this._value = undefined;
 			for(var key in data) {
@@ -21,13 +22,14 @@ ConfTree.prototype = {
 		} else {
 			setImmediate(function(){
 				this.children.forEach(function(child){
+console.log("calling destroy on '%s'", child.absName);
 					child.destroy();
 				}.bind(this));
 			}.bind(this));
 			
 			this._value = data;
 		}
-//console.log(this);
+console.log("going to call cbs on %s", this.absName);
 		var cb = this.cbs.shift();
 		while(cb !== undefined) {
 			(function(cb) {
@@ -43,7 +45,9 @@ ConfTree.prototype = {
 			return this.toHash();
 	},
 	get absName() {
-		if(this.parent.isRoot())
+		if(this.isRoot())
+			return;
+		else if(this.parent.isRoot())
 			return this.name;
 		else
 			return this.parent.absName + "." + this.name;
@@ -53,7 +57,7 @@ ConfTree.prototype = {
 	},
 	destroy:			function() {
 		this.onDestroy(this.absName);
-console.log("destroy %j", this.toHash());
+console.log("destroy %s", this.absName);
 		this._value = undefined;
 		this.children.forEach(function(child) {
 			child.destroy();
@@ -122,9 +126,11 @@ console.log("destroy %j", this.toHash());
 		this.signed_by.push(ws);
 	},
 	unsign:				function(ws) {
-		var index = this.signed_by.indexOf(ws);
-		if(index > 0)
-			this.signed_by.splice(index, 1);
+		console.log("unsign: %d", ws.id);
+		for(var i = 0; i < this.signed_by.length; i++) {
+			if(this.signed_by[i].id === ws.id)
+				this.signed_by.splice(i, 1);
+		}
 	},
 	addCb:				function(cb) {
 		this.cbs.push(cb);
@@ -211,23 +217,23 @@ console.log("destroy %j", this.toHash());
 			return child.createNode(keys);
 		return child;
 	},
-	diffNode:	function(tree) {
-		var ret = "";
-		if(this.value != tree.value)
-			ret = this.name;
-		else if(this.children.length == tree.children.length) {
-			for(var i = 0; i < this.children.length; i++) {
-				if(this.children[i].name != tree.children[i].name) {
-					ret = this.name;
-				} else {
-					if(this.name !== undefined)
-						ret = this.name + ".";
-					ret += this.children[i].diffNode(tree.children[i]);
-				}
-			}
-		} else {
-			ret = this.name;
-		}
-		return ret;
-	}
+	//diffNode:	function(tree) {
+	//	var ret = "";
+	//	if(this.value != tree.value)
+	//		ret = this.name;
+	//	else if(this.children.length == tree.children.length) {
+	//		for(var i = 0; i < this.children.length; i++) {
+	//			if(this.children[i].name != tree.children[i].name) {
+	//				ret = this.name;
+	//			} else {
+	//				if(this.name !== undefined)
+	//					ret = this.name + ".";
+	//				ret += this.children[i].diffNode(tree.children[i]);
+	//			}
+	//		}
+	//	} else {
+	//		ret = this.name;
+	//	}
+	//	return ret;
+	//}
 };
